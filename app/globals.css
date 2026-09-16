@@ -1,26 +1,136 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import 'tailwindcss';
 
 @theme inline {
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  /* --color-secondary-gradient: var(--gradient-secondary); */
+
   --color-background: var(--background);
+  --color-background-secondary: var(--background-secondary);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-background-input: var(--input);
+
+  --color-navbar: var(--navbar);
+  --color-border: var(--border);
+
+  --color-card: var(--card);
+  --color-card-secondary: var(--card-secondary);
+  --color-card-teritary: var(--card-teritary);
+  --font-sans: var(--font-sans);
+
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Oemji's brand is this dark palette everywhere — not gated behind
+   prefers-color-scheme, so a user on a light-mode system still gets the
+   intended look instead of unstyled/broken chrome (these custom properties
+   had no fallback outside the old dark-only media block). */
+:root {
+  --background: #121212;
+  --background-secondary: #151515;
+  --foreground: #ededed;
+
+  --primary: #fd3db5;
+  --secondary: #fac02f;
+
+  --gradient-bg: linear-gradient(to right, #121212 0%, #2e2e2e 100%);
+  --gradient-secondary: linear-gradient(
+    135deg,
+    #fddb5c 0%,
+    #fac02f 45%,
+    #f59519 100%
+  );
+
+  --input: #2a2a2e;
+
+  --border: #2d2828;
+
+  --card: #1e1e1e;
+  --card-secondary: #363636;
+  --card-teritary: #2e2e2e;
+
+  --primary-foreground: #ffffff;
+  --secondary-foreground: #000000;
+
+  --muted: #262626;
+  --muted-foreground: #9a9a9a;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --success: #22c55e;
+  --success-foreground: #ffffff;
+
+  --navbar: #1a1a1a;
 }
 
 body {
-  background: var(--background);
+  background: var(--background-secondary);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* ProductCard hover shine — plays once per hover, not looping */
+.product-card__shimmer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    oklch(1 0 0 / 0.25) 50%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+}
+
+.group:hover .product-card__shimmer {
+  animation: product-card-shimmer-sweep 0.8s ease-out forwards;
+}
+
+@keyframes product-card-shimmer-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 1;
+  }
+}
+
+/* Static diagonal sheen — always visible, no hover gate (unlike
+   .product-card__shimmer above, which sweeps once per hover). Two thin
+   light bands baked into the background via gradient stops. */
+.hot-product-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 60%,
+    oklch(1 0 0 / 0.06) 68%,
+    transparent 76%,
+    transparent 100%
+  );
+}
+
+@layer utilities {
+  .bg-secondary-gradient {
+    background-image: var(--gradient-secondary);
+  }
+  .bg-gradient {
+    background-image: var(--gradient-bg);
+  }
 }
