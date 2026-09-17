@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getPublicProductBySlug } from "@/lib/backend";
+import { getPublicProductBySlug, getPublicPaymentMethods } from "@/lib/backend";
+import ProductOrderForm from "./_components/ProductOrderForm";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -32,7 +33,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const { data } = await getPublicProductBySlug(slug).catch(() => ({ data: null }));
+  const [{ data }, { data: paymentMethodGroups }] = await Promise.all([
+    getPublicProductBySlug(slug).catch(() => ({ data: null })),
+    getPublicPaymentMethods(),
+  ]);
   if (!data) notFound();
 
   const { product, denoms } = data;
@@ -65,20 +69,12 @@ export default async function ProductPage({ params }: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <h1 className="text-foreground text-2xl font-bold">{title}</h1>
-        {product.description && (
-          <p className="text-muted-foreground mt-2">{product.description}</p>
-        )}
-        <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {denoms.map((denom) => (
-            <li
-              key={denom.id}
-              className="bg-card border-border rounded-lg border p-3 text-sm text-foreground"
-            >
-              {denom.denom} — Rp{Number(denom.sell_price).toLocaleString("id-ID")}
-            </li>
-          ))}
-        </ul>
+        <ProductOrderForm
+          product={product}
+          title={title}
+          denoms={denoms}
+          paymentMethodGroups={paymentMethodGroups}
+        />
       </div>
     </div>
   );

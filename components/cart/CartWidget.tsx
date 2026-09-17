@@ -1,0 +1,150 @@
+"use client";
+
+import { Minus, Plus, ShoppingCart, X } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { formatCurrency } from "@/lib/utils";
+import { useCart } from "./cart-context";
+
+export function CartWidget() {
+  const { items, isLoggedIn, removeItem, setQuantity, clear } = useCart();
+  const [open, setOpen] = useState(false);
+
+  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const itemCount = items.length;
+
+  const handleCheckout = () => {
+    setOpen(false);
+    toast.info("Checkout keranjang belum tersedia di storefront ini — segera hadir.");
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <Button
+        variant="secondary"
+        asChild
+        className="fixed right-6 bottom-6 z-40 h-14 gap-2 rounded-full px-5 shadow-lg"
+      >
+        <Link href="/sign-in">
+          <ShoppingCart className="h-5 w-5" />
+        </Link>
+      </Button>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button
+          variant="secondary"
+          className="fixed right-6 bottom-6 z-40 h-14 gap-2 rounded-full px-5 shadow-lg"
+        >
+          <ShoppingCart className="h-5 w-5" />
+          {itemCount > 0 && <Badge variant="secondary">{itemCount}</Badge>}
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Keranjang ({items.length})</SheetTitle>
+          <SheetDescription>Review item kamu, lalu checkout sekaligus.</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 space-y-3 overflow-y-auto px-4">
+          {items.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Keranjang masih kosong — tambahin dari halaman produk.
+            </p>
+          )}
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="relative flex items-center gap-3 rounded-2xl border border-border bg-card p-3"
+            >
+              <button
+                type="button"
+                onClick={() => removeItem(item.id)}
+                className="absolute top-2 right-2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+
+              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-muted">
+                {item.productImage && (
+                  <Image
+                    src={item.productImage}
+                    alt={item.productName}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1 pr-5">
+                <p className="truncate text-sm font-semibold">{item.productName}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {Object.values(item.inputs).join(" | ")}
+                </p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p className="truncate text-xs">
+                    <span className="font-medium">{item.denomLabel}</span>{" "}
+                    <span className="text-muted-foreground">{formatCurrency(item.price)}</span>
+                  </p>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm-icon"
+                      disabled={item.quantity <= 1}
+                      onClick={() => setQuantity(item.id, item.quantity - 1)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-4 text-center text-sm font-semibold">{item.quantity}</span>
+                    <Button
+                      type="button"
+                      size="sm-icon"
+                      disabled={item.quantity >= 10}
+                      onClick={() => setQuantity(item.id, item.quantity + 1)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {items.length > 0 && (
+          <div className="space-y-3 border-t border-border p-4">
+            <div className="flex items-center justify-between text-sm font-medium">
+              <span>Total</span>
+              <span>{formatCurrency(total)}</span>
+            </div>
+            <Button asChild variant="secondary" className="w-full" onClick={() => setOpen(false)}>
+              <Link href="/cart">Lihat Halaman Keranjang</Link>
+            </Button>
+            <Button className="w-full" onClick={handleCheckout}>
+              Checkout {itemCount} item
+            </Button>
+            <Button variant="destructive" className="w-full" onClick={clear}>
+              Kosongkan keranjang
+            </Button>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}

@@ -1,20 +1,32 @@
 "use client";
 
 import NavbarSearchInput from "@/components/navbar/NavbarSearchInput";
+import NavbarCartIcon from "@/components/navbar/NavbarCartIcon";
 import ProductSearchResults from "@/components/navbar/ProductSearchResults";
 import { useProductSearch } from "@/components/navbar/useProductSearch";
+import { useCart } from "@/components/cart/cart-context";
+import { Button } from "@/components/ui/button";
 import { Command, CommandList } from "@/components/ui/command";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 const NavBar = () => {
   const headerRef = useRef<HTMLElement>(null);
+  const router = useRouter();
+  const { isLoggedIn, refreshAuth } = useCart();
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const { query, setQuery, results, isLoading, goToProduct } =
     useProductSearch();
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    refreshAuth();
+    router.push("/");
+  };
 
   const closeMobileSearch = () => {
     setIsMobileSearchOpen(false);
@@ -43,7 +55,7 @@ const NavBar = () => {
             />
           </Link>
           <NavbarSearchInput />
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-2">
             {!isMobileSearchOpen && (
               <button
                 type="button"
@@ -53,6 +65,18 @@ const NavBar = () => {
               >
                 <Search className="size-4" />
               </button>
+            )}
+            {isLoggedIn ? (
+              <>
+                <NavbarCartIcon />
+                <Button variant="default" size="sm" className="text-foreground" onClick={handleLogout}>
+                  Keluar
+                </Button>
+              </>
+            ) : (
+              <Button variant="default" size="sm" className="text-foreground" asChild>
+                <Link href="/sign-in">Masuk</Link>
+              </Button>
             )}
           </div>
         </div>

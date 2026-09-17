@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { Toaster } from "sonner";
 import { Providers } from "./providers";
-import NavBar from "@/components/navbar/NavBar";
-import Footer from "@/components/Footer";
+import { SiteChrome } from "@/components/SiteChrome";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -43,13 +43,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="id" className={`${jakarta.variable} h-full antialiased`}>
       <body>
-        <div className="flex min-h-screen flex-col bg-background">
-          <NavBar />
-          <main className="min-h-[80vh]">
-            <Providers>{children}</Providers>
-          </main>
-          <Footer />
-        </div>
+        <Providers>
+          <SiteChrome>{children}</SiteChrome>
+        </Providers>
+
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            classNames: {
+              toast: "!bg-primary !text-primary-foreground !border-0",
+              icon: "!text-primary-foreground",
+              closeButton: "!bg-primary !text-primary-foreground !border-0",
+            },
+          }}
+        />
       </body>
     </html>
   );
