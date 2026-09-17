@@ -5,7 +5,7 @@ import { UseFormReturn } from "react-hook-form";
 import type { PublicProductDenomItem } from "@/lib/backend";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { CheckoutFormValues } from "./ProductOrderForm";
-import StepCard from "./StepCard";
+import StepCard from "@/components/checkout/StepCard";
 
 interface ProductDenomPickerProps {
   form: UseFormReturn<CheckoutFormValues>;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getPublicProductBySlug, getPublicPaymentMethods } from "@/lib/backend";
+import { getPublicProductBySlug } from "@/lib/backend";
 import ProductOrderForm from "./_components/ProductOrderForm";
 
 type Props = {
@@ -33,10 +33,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const [{ data }, { data: paymentMethodGroups }] = await Promise.all([
-    getPublicProductBySlug(slug).catch(() => ({ data: null })),
-    getPublicPaymentMethods(),
-  ]);
+  const { data } = await getPublicProductBySlug(slug).catch(() => ({ data: null }));
   if (!data) notFound();
 
   const { product, denoms } = data;
@@ -69,12 +66,7 @@ export default async function ProductPage({ params }: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <ProductOrderForm
-          product={product}
-          title={title}
-          denoms={denoms}
-          paymentMethodGroups={paymentMethodGroups}
-        />
+        <ProductOrderForm product={product} title={title} denoms={denoms} />
       </div>
     </div>
   );

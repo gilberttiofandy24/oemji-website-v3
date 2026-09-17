@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface CartItem {
   id: string;
+  denomId: string;
   productName: string;
   productImage: string | null;
   denomLabel: string;
@@ -40,6 +41,7 @@ function hasLoggedInCookie() {
 
 interface RawCartItem {
   id: string;
+  product_denom_id: string;
   product_name: string;
   denom_name: string;
   image_url: string | null;
@@ -56,6 +58,7 @@ async function fetchCart(): Promise<CartItem[]> {
   const data = body.data ?? [];
   return data.map((item) => ({
     id: item.id,
+    denomId: item.product_denom_id,
     productName: item.product_name,
     productImage: item.image_url,
     denomLabel: item.denom_name,

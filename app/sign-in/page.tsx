@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -47,6 +48,14 @@ export default function SignInPage() {
     <div className="flex min-h-svh w-full">
       <div className="flex w-full items-center justify-center px-4 py-8 md:w-1/2">
         <div className="w-full max-w-sm">
+          <Link
+            href="/"
+            className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Kembali ke Beranda
+          </Link>
+
           <Link href="/" className="mb-8 flex items-center gap-2">
             <Image src="/logo-name.png" alt="Oemji" width={40} height={40} />
           </Link>

@@ -221,6 +221,27 @@ export async function validatePromoCode(
   });
 }
 
+export interface ValidatePublicOrderPayload {
+  product_denom_id: string;
+  inputs: Record<string, string>;
+}
+
+export interface ValidatePublicOrderData {
+  customer_no: string;
+  nickname: string | null;
+  region: string | null;
+  skipped: boolean;
+}
+
+export async function validatePublicOrder(
+  payload: ValidatePublicOrderPayload,
+): Promise<ResponseData<ValidatePublicOrderData>> {
+  return backendFetch("/public/order/validate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export interface UserAccount {
   id: string;
   username: string;

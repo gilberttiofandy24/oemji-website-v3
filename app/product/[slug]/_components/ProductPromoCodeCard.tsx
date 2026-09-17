@@ -7,7 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import StepCard from "./StepCard";
+import StepCard from "@/components/checkout/StepCard";
 
 interface ProductPromoCodeCardProps {
   step: number;
@@ -64,7 +64,7 @@ const ProductPromoCodeCard = ({
     },
   });
 
-  const handleValidatePromo = useCallback(async () => {
+  const handleValidatePromo = useCallback(() => {
     if (!promoInput.trim()) {
       toast.error("Masukkan kode promo terlebih dahulu");
       return;
@@ -74,7 +74,7 @@ const ProductPromoCodeCard = ({
       return;
     }
 
-    await validateMutation.mutateAsync({
+    validateMutation.mutate({
       code: promoInput.trim().toUpperCase(),
       product_id: productId,
       subtotal: String(subtotal),

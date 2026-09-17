@@ -1,6 +1,7 @@
 "use client";
 
 import { Minus, Plus, ShoppingCart, X } from "lucide-react";
+import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -18,8 +19,15 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "./cart-context";
 
+const MotionLink = motion.create(Link);
+
+const FLOAT_BUTTON_CLASS =
+  "fixed right-6 bottom-6 z-40 flex size-14 items-center justify-center rounded-full bg-primary text-foreground shadow-lg";
+const FLOAT_HOVER = { scale: 1.15, rotate: -8 };
+const FLOAT_TRANSITION = { type: "spring", stiffness: 400, damping: 15 } as const;
+
 export function CartWidget() {
-  const { items, isLoggedIn, removeItem, setQuantity, clear } = useCart();
+  const { items, isLoggedIn, removeItem, setQuantity } = useCart();
   const [open, setOpen] = useState(false);
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -32,28 +40,33 @@ export function CartWidget() {
 
   if (!isLoggedIn) {
     return (
-      <Button
-        variant="secondary"
-        asChild
-        className="fixed right-6 bottom-6 z-40 h-14 gap-2 rounded-full px-5 shadow-lg"
+      <MotionLink
+        href="/sign-in"
+        whileHover={FLOAT_HOVER}
+        transition={FLOAT_TRANSITION}
+        className={FLOAT_BUTTON_CLASS}
       >
-        <Link href="/sign-in">
-          <ShoppingCart className="h-5 w-5" />
-        </Link>
-      </Button>
+        <ShoppingCart className="h-5 w-5" />
+      </MotionLink>
     );
   }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button
-          variant="secondary"
-          className="fixed right-6 bottom-6 z-40 h-14 gap-2 rounded-full px-5 shadow-lg"
+        <motion.button
+          type="button"
+          whileHover={FLOAT_HOVER}
+          transition={FLOAT_TRANSITION}
+          className={FLOAT_BUTTON_CLASS}
         >
           <ShoppingCart className="h-5 w-5" />
-          {itemCount > 0 && <Badge variant="secondary">{itemCount}</Badge>}
-        </Button>
+          {itemCount > 0 && (
+            <Badge variant="secondary" className="absolute -top-1 -right-1">
+              {itemCount}
+            </Badge>
+          )}
+        </motion.button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
@@ -133,14 +146,11 @@ export function CartWidget() {
               <span>Total</span>
               <span>{formatCurrency(total)}</span>
             </div>
-            <Button asChild variant="secondary" className="w-full" onClick={() => setOpen(false)}>
+            <Button asChild variant="secondary" className="w-full text-foreground" onClick={() => setOpen(false)}>
               <Link href="/cart">Lihat Halaman Keranjang</Link>
             </Button>
             <Button className="w-full" onClick={handleCheckout}>
               Checkout {itemCount} item
-            </Button>
-            <Button variant="destructive" className="w-full" onClick={clear}>
-              Kosongkan keranjang
             </Button>
           </div>
         )}

@@ -40,7 +40,7 @@ const ContactUsForm = () => {
   });
 
   const {
-    mutateAsync,
+    mutate,
     isPending,
     isSuccess,
     reset: resetMutation,
@@ -91,7 +91,7 @@ const ContactUsForm = () => {
           </div>
         ) : (
           <form
-            onSubmit={form.handleSubmit((data) => mutateAsync(data))}
+            onSubmit={form.handleSubmit((data) => mutate(data))}
             className="flex flex-col gap-4"
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

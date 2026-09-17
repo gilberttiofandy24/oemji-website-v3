@@ -1,28 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FieldErrors, Resolver, useForm } from "react-hook-form";
+import { useForm, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import type { PublicProductDenomItem, PublicProductItem, PaymentMethodGroup } from "@/lib/backend";
+import { useRouter } from "next/navigation";
+import type { PublicProductDenomItem, PublicProductItem } from "@/lib/backend";
 import { useCart } from "@/components/cart/cart-context";
+import { useBuyNowStore } from "@/components/checkout/buy-now-store";
 import ProductInfoCard from "./ProductInfoCard";
-import ProductInputCard from "./ProductInputCard";
+import ProductInputCard, { type AccountValidationResult } from "./ProductInputCard";
 import ProductDenomPicker from "./ProductDenomPicker";
 import ProductQuantityCard from "./ProductQuantityCard";
 import ProductPromoCodeCard from "./ProductPromoCodeCard";
-import ProductPaymentMethodPicker from "./ProductPaymentMethodPicker";
-import ProductPhoneNumberCard from "./ProductPhoneNumberCard";
 import ProductOrderSummary from "./ProductOrderSummary";
-import CheckoutConfirmDialog from "./CheckoutConfirmDialog";
-import { formatCurrency } from "@/lib/utils";
 
 interface ProductOrderFormProps {
   product: PublicProductItem;
   title: string;
   denoms: PublicProductDenomItem[];
-  paymentMethodGroups: PaymentMethodGroup[];
 }
 
 export type CheckoutFormValues = Record<string, string>;
@@ -30,8 +27,6 @@ export type CheckoutFormValues = Record<string, string>;
 function buildSchema(fields: PublicProductItem["input_fields"]) {
   const shape: Record<string, z.ZodTypeAny> = {
     product_supplier_id: z.string().min(1, "Pilih nominal terlebih dahulu"),
-    payment_method_id: z.string().min(1, "Pilih metode pembayaran"),
-    phone_number: z.string().regex(/^08[0-9]{8,11}$/, "Nomor WhatsApp tidak valid (contoh: 08xxx)"),
   };
 
   for (const field of fields) {
@@ -49,14 +44,16 @@ function buildSchema(fields: PublicProductItem["input_fields"]) {
   return z.object(shape);
 }
 
-const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: ProductOrderFormProps) => {
+const ProductOrderForm = ({ product, title, denoms }: ProductOrderFormProps) => {
+  const router = useRouter();
   const { addItem, isLoggedIn } = useCart();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const setBuyNowItem = useBuyNowStore((state) => state.setItem);
   const [quantity, setQuantity] = useState(1);
   const [appliedPromo, setAppliedPromo] = useState<{
     code: string;
     discountAmount: number;
   } | null>(null);
+  const [accountResult, setAccountResult] = useState<AccountValidationResult | null>(null);
 
   const visibleInputFields = useMemo(
     () => product.input_fields.filter((field) => field.show).sort((a, b) => a.sort_order - b.sort_order),
@@ -69,8 +66,6 @@ const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: Produ
     resolver: zodResolver(schema) as Resolver<CheckoutFormValues>,
     defaultValues: {
       product_supplier_id: "",
-      payment_method_id: "",
-      phone_number: "",
       ...Object.fromEntries(visibleInputFields.map((field) => [field.key, ""])),
     },
   });
@@ -78,48 +73,27 @@ const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: Produ
   // eslint-disable-next-line react-hooks/incompatible-library
   const selectedDenomId = form.watch("product_supplier_id");
   const selectedDenom = denoms.find((denom) => denom.id === selectedDenomId);
-  const selectedMethodId = form.watch("payment_method_id");
-  const selectedMethod = paymentMethodGroups
-    .flatMap((group) => group.methods)
-    .find((method) => method.id === selectedMethodId);
 
   const unitPrice = selectedDenom ? Math.round(Number(selectedDenom.sell_price)) : 0;
   const basePrice = unitPrice * quantity;
   const discountAmount = Math.round(appliedPromo?.discountAmount ?? 0);
-  const priceAfterDiscount = Math.max(0, basePrice - discountAmount);
-  const feeFlat = selectedMethod ? Math.round(Number(selectedMethod.fee_flat)) : 0;
-  const feePercent = selectedMethod ? Number(selectedMethod.fee_percent) : 0;
-  const total = selectedMethod
-    ? Math.round(priceAfterDiscount + feeFlat + (priceAfterDiscount * feePercent) / 100)
-    : priceAfterDiscount;
-  const feeLabel = selectedMethod
-    ? feePercent > 0
-      ? `+${feePercent}%`
-      : feeFlat > 0
-        ? `+${formatCurrency(feeFlat)}`
-        : null
-    : null;
+  const total = Math.max(0, basePrice - discountAmount);
 
   let stepCounter = 0;
   const inputStep = visibleInputFields.length > 0 ? ++stepCounter : 0;
   const denomStep = ++stepCounter;
   const quantityStep = ++stepCounter;
   const promoStep = ++stepCounter;
-  const paymentStep = ++stepCounter;
-  const phoneStep = ++stepCounter;
 
   const watchedValues = form.watch();
   const isInputFieldsComplete = visibleInputFields.every((field) =>
     Boolean(watchedValues[field.key]?.trim()),
   );
   const isDenomSelected = Boolean(watchedValues.product_supplier_id);
-  const isPaymentMethodSelected = Boolean(watchedValues.payment_method_id);
 
   const inputCardRef = useRef<HTMLDivElement>(null);
   const denomPickerRef = useRef<HTMLDivElement>(null);
   const promoCardRef = useRef<HTMLDivElement>(null);
-  const paymentMethodRef = useRef<HTMLDivElement>(null);
-  const phoneNumberRef = useRef<HTMLDivElement>(null);
 
   const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) =>
     ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -135,12 +109,6 @@ const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: Produ
     setQuantity(1);
   }, [selectedDenomId]);
 
-  useEffect(() => {
-    if (selectedMethodId) {
-      scrollTo(phoneNumberRef);
-    }
-  }, [selectedMethodId]);
-
   const checkDenomPrerequisites = () => {
     if (!isInputFieldsComplete) {
       toast.error("Isi data akun terlebih dahulu");
@@ -150,34 +118,12 @@ const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: Produ
     return true;
   };
 
-  const checkPaymentMethodPrerequisites = () => {
-    if (!isInputFieldsComplete) {
-      toast.error("Isi data akun terlebih dahulu");
-      scrollTo(inputCardRef);
-      return false;
+  const buildInputs = () => {
+    const inputs: Record<string, string> = {};
+    for (const field of visibleInputFields) {
+      inputs[field.key] = watchedValues[field.key];
     }
-    if (!isDenomSelected) {
-      toast.error("Pilih nominal terlebih dahulu");
-      scrollTo(denomPickerRef);
-      return false;
-    }
-    return true;
-  };
-
-  const onInvalid = (errors: FieldErrors<CheckoutFormValues>) => {
-    if (errors.phone_number) {
-      scrollTo(phoneNumberRef);
-    }
-  };
-
-  const onSubmit = form.handleSubmit(() => {
-    if (!selectedDenom || !selectedMethod) return;
-    setConfirmOpen(true);
-  }, onInvalid);
-
-  const handleConfirmOrder = () => {
-    setConfirmOpen(false);
-    toast.info("Checkout belum tersedia di storefront ini — segera hadir.");
+    return inputs;
   };
 
   const handleAddToCart = async () => {
@@ -185,41 +131,48 @@ const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: Produ
       toast.error("Mohon masuk untuk memakai fitur keranjang");
       return;
     }
-
     if (!checkDenomPrerequisites() || !selectedDenom) return;
-    if (!isDenomSelected) {
-      toast.error("Pilih nominal terlebih dahulu");
-      scrollTo(denomPickerRef);
-      return;
-    }
-
-    const phoneNumber = watchedValues.phone_number ?? "";
-    if (!/^08[0-9]{8,11}$/.test(phoneNumber)) {
-      toast.error("Isi nomor WhatsApp yang valid terlebih dahulu");
-      scrollTo(phoneNumberRef);
-      return;
-    }
-
-    const inputs: Record<string, string> = {};
-    for (const field of visibleInputFields) {
-      inputs[field.key] = watchedValues[field.key];
-    }
 
     try {
-      await addItem({ denomId: selectedDenom.id, quantity, inputs });
+      await addItem({ denomId: selectedDenom.id, quantity, inputs: buildInputs() });
       toast.success("Ditambahkan ke keranjang");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal menambah ke keranjang");
     }
   };
 
+  const handleBuyNow = () => {
+    if (!checkDenomPrerequisites() || !selectedDenom) return;
+
+    setBuyNowItem({
+      productName: title,
+      productImage: product.image_url,
+      denomId: selectedDenom.id,
+      denomLabel: selectedDenom.denom,
+      price: unitPrice,
+      quantity,
+      inputs: buildInputs(),
+      promoCode: appliedPromo?.code,
+      discountAmount: appliedPromo?.discountAmount,
+      nickname: accountResult?.nickname,
+      region: accountResult?.region,
+    });
+    router.push("/checkout");
+  };
+
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="order-2 flex flex-col gap-4 md:order-1 md:col-span-2">
           {visibleInputFields.length > 0 && (
             <div ref={inputCardRef} className="scroll-mt-20">
-              <ProductInputCard form={form} step={inputStep} fields={visibleInputFields} />
+              <ProductInputCard
+                form={form}
+                step={inputStep}
+                fields={visibleInputFields}
+                productDenomId={selectedDenom?.id ?? denoms[0]?.id}
+                onResult={setAccountResult}
+              />
             </div>
           )}
           <div ref={denomPickerRef} className="scroll-mt-20">
@@ -243,18 +196,6 @@ const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: Produ
               onPromoApplied={setAppliedPromo}
             />
           </div>
-          <div ref={paymentMethodRef} className="scroll-mt-20">
-            <ProductPaymentMethodPicker
-              form={form}
-              step={paymentStep}
-              groups={paymentMethodGroups}
-              basePrice={priceAfterDiscount}
-              checkPrerequisites={checkPaymentMethodPrerequisites}
-            />
-          </div>
-          <div ref={phoneNumberRef} className="scroll-mt-20">
-            <ProductPhoneNumberCard form={form} step={phoneStep} />
-          </div>
         </div>
 
         <div className="order-1 md:order-2">
@@ -265,27 +206,14 @@ const ProductOrderForm = ({ product, title, denoms, paymentMethodGroups }: Produ
       {isDenomSelected && (
         <ProductOrderSummary
           denomLabel={selectedDenom ? `${selectedDenom.denom} × ${quantity}` : ""}
-          paymentMethodName={selectedMethod?.name ?? null}
-          feeLabel={feeLabel}
           basePrice={basePrice}
           discountAmount={discountAmount}
           total={total}
-          isSubmitting={false}
-          canCheckout={isPaymentMethodSelected}
           onAddToCart={handleAddToCart}
+          onBuyNow={handleBuyNow}
         />
       )}
-
-      <CheckoutConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        productName={title}
-        denomLabel={selectedDenom ? `${selectedDenom.denom} × ${quantity}` : ""}
-        paymentMethodName={selectedMethod?.name ?? ""}
-        promoCode={appliedPromo}
-        onConfirm={handleConfirmOrder}
-      />
-    </form>
+    </div>
   );
 };
 

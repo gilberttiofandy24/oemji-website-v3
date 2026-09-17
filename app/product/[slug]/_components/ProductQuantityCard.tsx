@@ -1,7 +1,7 @@
 import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import StepCard from "./StepCard";
+import StepCard from "@/components/checkout/StepCard";
 
 interface ProductQuantityCardProps {
   step: number;
@@ -19,19 +19,22 @@ const ProductQuantityCard = ({ step, quantity, onQuantityChange }: ProductQuanti
     <StepCard step={step} title="Masukkan Jumlah Pembelian">
       <div className="flex items-center gap-2">
         <Input
-          type="number"
-          min={MIN_QUANTITY}
-          max={MAX_QUANTITY}
+          type="text"
+          inputMode="numeric"
           value={quantity}
           onChange={(e) => {
-            const parsed = parseInt(e.target.value, 10);
-            onQuantityChange(Number.isNaN(parsed) ? MIN_QUANTITY : clamp(parsed));
+            const digits = e.target.value.replace(/\D/g, "");
+            if (!digits) {
+              onQuantityChange(MIN_QUANTITY);
+              return;
+            }
+            onQuantityChange(clamp(parseInt(digits, 10)));
           }}
           className="flex-1 bg-background-input"
         />
         <Button
           type="button"
-          variant="secondary"
+          variant="default"
           size="icon"
           disabled={quantity >= MAX_QUANTITY}
           onClick={() => onQuantityChange(clamp(quantity + 1))}
@@ -40,7 +43,7 @@ const ProductQuantityCard = ({ step, quantity, onQuantityChange }: ProductQuanti
         </Button>
         <Button
           type="button"
-          variant="secondary"
+          variant="default"
           size="icon"
           disabled={quantity <= MIN_QUANTITY}
           onClick={() => onQuantityChange(clamp(quantity - 1))}
