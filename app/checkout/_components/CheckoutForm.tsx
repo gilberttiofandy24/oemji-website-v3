@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, UserRoundCheck } from "lucide-react";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import NumberFlow from "@number-flow/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { PaymentMethodGroup } from "@/lib/backend";
+import type { CheckoutData, PaymentMethodGroup } from "@/lib/backend";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/components/cart/cart-context";
 import { useBuyNowStore } from "@/components/checkout/buy-now-store";
@@ -40,7 +40,13 @@ interface CheckoutFormProps {
 
 const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
   const router = useRouter();
-  const { items: cartItems, isLoggedIn, authChecked, setQuantity: setCartQuantity } = useCart();
+  const {
+    items: cartItems,
+    isLoggedIn,
+    authChecked,
+    setQuantity: setCartQuantity,
+    removeItem: removeCartItem,
+  } = useCart();
   const buyNowItem = useBuyNowStore((state) => state.item);
   const setBuyNowItem = useBuyNowStore((state) => state.setItem);
   const clearBuyNow = useBuyNowStore((state) => state.clear);
@@ -50,6 +56,7 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedMethodId, setSelectedMethodId] = useState("");
   const [cartNicknames, setCartNicknames] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (authChecked && !isLoggedIn && !buyNowItem) {
@@ -57,9 +64,10 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
     }
   }, [authChecked, isLoggedIn, buyNowItem, router]);
 
+  const didCheckoutRef = useRef(false);
   const hasSelection = Boolean(buyNowItem) || cartCheckoutIds.length > 0;
   useEffect(() => {
-    if (!hasSelection) {
+    if (!hasSelection && !didCheckoutRef.current) {
       router.replace("/cart");
     }
   }, [hasSelection, router]);
@@ -144,7 +152,7 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
     ? Math.round(priceAfterDiscount + feeFlat + (priceAfterDiscount * feePercent) / 100)
     : priceAfterDiscount;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (items.length === 0) {
       toast.error("Gak ada item buat di-checkout");
       return;
@@ -158,9 +166,58 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
       return;
     }
 
-    toast.info("Checkout belum tersedia di storefront ini — segera hadir.");
-    clearBuyNow();
-    clearCartCheckoutIds();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/order/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            product_denom_id: item.denomId,
+            inputs: item.inputs,
+            quantity: item.quantity,
+          })),
+          payment_method_id: selectedMethodId,
+          phone_number: phoneNumber,
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        toast.error(body.message ?? "Checkout gagal");
+        return;
+      }
+
+      const data: CheckoutData = body.data;
+      try {
+        sessionStorage.setItem(
+          `checkout:${data.ref_id}`,
+          JSON.stringify({
+            paymentMethodName: selectedMethod.name,
+            items: items.map((item) => ({
+              productName: item.productName,
+              productImage: item.productImage,
+              denomLabel: item.denomLabel,
+            })),
+          }),
+        );
+      } catch {
+        // sessionStorage unavailable — payment page falls back to backend-only data
+      }
+
+      didCheckoutRef.current = true;
+      if (!buyNowItem) {
+        for (const id of cartCheckoutIds) {
+          removeCartItem(id);
+        }
+      }
+      clearBuyNow();
+      clearCartCheckoutIds();
+      router.push(`/payment/${data.ref_id}`);
+    } catch {
+      toast.error("Checkout gagal, coba lagi");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!hasSelection || items.length === 0) {
@@ -288,8 +345,8 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
             </div>
           </div>
 
-          <Button onClick={handleSubmit} className="w-full">
-            Bayar Sekarang
+          <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full">
+            {isSubmitting ? "Memproses..." : "Bayar Sekarang"}
           </Button>
         </div>
       </div>

@@ -14,7 +14,7 @@ const NavbarCartIcon = () => {
     <Link
       href="/cart"
       aria-label="Keranjang"
-      className="relative flex size-9 items-center justify-center rounded-lg bg-background-input"
+      className="relative flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground"
     >
       <motion.div whileHover={{ scale: 1.15, rotate: -8 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}>
         <ShoppingCart className="size-4" />

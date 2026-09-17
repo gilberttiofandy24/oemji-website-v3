@@ -5,10 +5,17 @@ import NavbarCartIcon from "@/components/navbar/NavbarCartIcon";
 import ProductSearchResults from "@/components/navbar/ProductSearchResults";
 import { useProductSearch } from "@/components/navbar/useProductSearch";
 import { useCart } from "@/components/cart/cart-context";
+import { useAccount } from "@/hooks/use-account";
 import { Button } from "@/components/ui/button";
 import { Command, CommandList } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Command as CommandPrimitive } from "cmdk";
-import { Search, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Search, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +25,7 @@ const NavBar = () => {
   const headerRef = useRef<HTMLElement>(null);
   const router = useRouter();
   const { isLoggedIn, refreshAuth } = useCart();
+  const { data: account } = useAccount(isLoggedIn);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const { query, setQuery, results, isLoading, goToProduct } =
     useProductSearch();
@@ -68,10 +76,30 @@ const NavBar = () => {
             )}
             {isLoggedIn ? (
               <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Akun Saya"
+                      className="flex size-9 items-center justify-center rounded-full bg-secondary-gradient text-sm font-semibold text-primary-foreground"
+                    >
+                      {account?.username?.charAt(0).toUpperCase() ?? "?"}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem asChild>
+                      <Link href="/akun">
+                        <LayoutDashboard className="size-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                      <LogOut className="size-4" />
+                      Keluar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <NavbarCartIcon />
-                <Button variant="default" size="sm" className="text-foreground" onClick={handleLogout}>
-                  Keluar
-                </Button>
               </>
             ) : (
               <Button variant="default" size="sm" className="text-foreground" asChild>

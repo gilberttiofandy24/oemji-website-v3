@@ -79,7 +79,7 @@ export interface PublicProductDenomItem {
   image_url: string | null;
 }
 
-interface PaginatedResponse<T> {
+export interface PaginatedResponse<T> {
   message: string;
   data: T[];
   meta: {
@@ -304,6 +304,37 @@ export async function logoutAllUser(token: string): Promise<void> {
   });
 }
 
+export interface MeUserData {
+  id: string;
+  username: string;
+  email: string;
+  phone: string;
+  is_reseller: boolean;
+  is_verified: boolean;
+  last_login_at?: string;
+}
+
+export async function getMeUser(token: string): Promise<ResponseData<MeUserData>> {
+  return backendFetch("/auth/user/me", {
+    headers: authHeader(token),
+    cache: "no-store",
+  });
+}
+
+export interface ChangePasswordPayload {
+  old_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
+export async function changePasswordUser(token: string, payload: ChangePasswordPayload): Promise<void> {
+  await backendFetch("/auth/user/change-password", {
+    method: "POST",
+    headers: authHeader(token),
+    body: JSON.stringify(payload),
+  });
+}
+
 export interface CartItemData {
   id: string;
   product_denom_id: string;
@@ -361,5 +392,82 @@ export async function clearCart(token: string): Promise<void> {
   await backendFetch("/cart", {
     method: "DELETE",
     headers: authHeader(token),
+  });
+}
+
+export interface CheckoutItemPayload {
+  product_denom_id: string;
+  inputs: Record<string, string>;
+  quantity: number;
+}
+
+export interface CheckoutPayload {
+  items: CheckoutItemPayload[];
+  payment_method_id: string;
+  phone_number: string;
+}
+
+export interface CheckoutData {
+  batch_id: string;
+  ref_id: string;
+  total_amount: string;
+  partner_service_id: string;
+  va_number: string;
+  expired_at: string;
+}
+
+export async function checkout(
+  token: string,
+  payload: CheckoutPayload,
+): Promise<ResponseData<CheckoutData>> {
+  return backendFetch("/order/checkout", {
+    method: "POST",
+    headers: authHeader(token),
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface CheckoutStatusItem {
+  ref_id: string;
+  product_name: string;
+  denom_name: string;
+  nickname: string | null;
+  status: string;
+  serial_number: string | null;
+}
+
+export interface CheckoutStatusData {
+  batch_id: string;
+  ref_id: string;
+  status: string;
+  total_amount: string;
+  partner_service_id: string;
+  va_number: string;
+  expired_at: string;
+  items: CheckoutStatusItem[];
+}
+
+export async function getCheckoutStatus(refId: string): Promise<ResponseData<CheckoutStatusData>> {
+  return backendFetch(`/public/order/checkout/${refId}`, {
+    cache: "no-store",
+  });
+}
+
+export interface OrderHistoryItem {
+  ref_id: string;
+  status: string;
+  total_amount: string;
+  item_count: number;
+  product_names: string[];
+  created_at: string;
+}
+
+export async function getOrderHistory(
+  token: string,
+  page: number,
+): Promise<PaginatedResponse<OrderHistoryItem>> {
+  return backendFetch(`/order/history?page=${page}`, {
+    headers: authHeader(token),
+    cache: "no-store",
   });
 }
