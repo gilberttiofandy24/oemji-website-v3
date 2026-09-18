@@ -1,6 +1,13 @@
 "use client";
 
-import { Check, Copy, Headset, PackageSearch, PartyPopper, UserRoundCheck } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Headset,
+  PackageSearch,
+  PartyPopper,
+  UserRoundCheck,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -31,12 +38,15 @@ const messageByStatus: Record<string, string> = {
   PENDING_PAYMENT: "Selesaikan pembayaran kamu sebelum waktu habis.",
   PENDING: "Pesanan kamu sedang diproses. Mohon tunggu!",
   SUCCESS: "Pesanan kamu berhasil dikirim.",
-  FAILED: "Pesanan ini gagal diproses. Jika sudah terpotong, dana akan otomatis dikembalikan.",
+  FAILED:
+    "Pesanan ini gagal diproses. Silakan hubungi admin untuk proses lebih lanjut.",
 };
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "FAILED") return <Badge variant="destructive">{statusLabel[status]}</Badge>;
-  if (status === "SUCCESS") return <Badge variant="success">{statusLabel[status]}</Badge>;
+  if (status === "FAILED")
+    return <Badge variant="destructive">{statusLabel[status]}</Badge>;
+  if (status === "SUCCESS")
+    return <Badge variant="success">{statusLabel[status]}</Badge>;
   if (status === "PENDING") return <Badge>{statusLabel[status]}</Badge>;
   return <Badge variant="secondary">{statusLabel[status] ?? status}</Badge>;
 }
@@ -54,7 +64,11 @@ const CopyableCode = ({ value }: { value: string }) => {
       className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-background-input px-3 py-2.5 text-left"
     >
       <span className="font-mono text-sm">{value}</span>
-      {copied ? <Check className="size-4 shrink-0 text-success" /> : <Copy className="size-4 shrink-0 text-muted-foreground" />}
+      {copied ? (
+        <Check className="size-4 shrink-0 text-success" />
+      ) : (
+        <Copy className="size-4 shrink-0 text-muted-foreground" />
+      )}
     </button>
   );
 };
@@ -71,7 +85,11 @@ const CopyIconButton = ({ value }: { value: string }) => {
       }}
       className="shrink-0"
     >
-      {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5 text-muted-foreground" />}
+      {copied ? (
+        <Check className="size-3.5 text-success" />
+      ) : (
+        <Copy className="size-3.5 text-muted-foreground" />
+      )}
     </button>
   );
 };
@@ -100,7 +118,9 @@ const PaymentPageClient = ({ refId }: { refId: string }) => {
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`/api/order/checkout/${refId}`, { cache: "no-store" });
+        const res = await fetch(`/api/order/checkout/${refId}`, {
+          cache: "no-store",
+        });
         if (!res.ok) {
           if (res.status === 404) setNotFound(true);
           return;
@@ -127,7 +147,9 @@ const PaymentPageClient = ({ refId }: { refId: string }) => {
   }, [refId]);
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Memuat status pesanan...</p>;
+    return (
+      <p className="text-sm text-muted-foreground">Memuat status pesanan...</p>
+    );
   }
 
   if (notFound || !status) {
@@ -147,6 +169,8 @@ const PaymentPageClient = ({ refId }: { refId: string }) => {
 
   const isPaid = status.status !== "PENDING_PAYMENT";
   const total = Number(status.total_amount);
+  const subtotal = Number(status.subtotal_amount);
+  const fee = Number(status.fee_amount);
 
   return (
     <div className="flex flex-col gap-4">
@@ -154,7 +178,9 @@ const PaymentPageClient = ({ refId }: { refId: string }) => {
         <PaymentProgressStepper status={status.status} />
       </div>
 
-      {!isPaid && status.expired_at && <PaymentCountdown expiryTime={status.expired_at} />}
+      {!isPaid && status.expired_at && (
+        <PaymentCountdown expiryTime={status.expired_at} />
+      )}
 
       <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-5">
         <div className="flex flex-col gap-4 md:col-span-3">
@@ -175,91 +201,156 @@ const PaymentPageClient = ({ refId }: { refId: string }) => {
                         />
                       </div>
                     )}
-                    <div className="flex flex-1 flex-col gap-1">
-                      <p className="text-sm font-semibold">{item.product_name}</p>
-                      <p className="text-xs text-muted-foreground">{ctxItem?.denomLabel ?? item.denom_name}</p>
-                      {item.nickname && (
-                        <p className="flex items-center gap-1 text-xs text-primary">
-                          <UserRoundCheck className="size-3" />
-                          {item.nickname}
+                    <div className="flex flex-1 flex-col gap-1.5">
+                      <div>
+                        <p className="text-sm font-semibold">
+                          {item.product_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {ctxItem?.denomLabel ?? item.denom_name}
+                        </p>
+                      </div>
+
+                      {(item.inputs.length > 0 || item.nickname) && (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {item.nickname && (
+                            <span className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                              <UserRoundCheck className="size-3" />
+                              {item.nickname}
+                            </span>
+                          )}
+                          {item.inputs.map((input) => (
+                            <span
+                              key={input.label}
+                              className="rounded-md bg-background-secondary px-2 py-0.5 text-xs text-muted-foreground"
+                            >
+                              {input.label}:{" "}
+                              <span className="font-medium text-foreground">
+                                {input.value}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {item.serial_number && (
+                        <p className="font-mono text-xs text-muted-foreground">
+                          SN: {item.serial_number}
                         </p>
                       )}
-                      {item.serial_number && (
-                        <p className="font-mono text-xs text-muted-foreground">SN: {item.serial_number}</p>
-                      )}
                     </div>
-                    <StatusBadge status={item.status} />
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <StatusBadge status={item.status} />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {formatCurrency(Number(item.sell_price))}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
             </div>
           </section>
 
-          <div className="flex items-center justify-between rounded-lg border border-success/30 bg-success/10 px-4 py-3.5">
-            <span className="text-sm font-semibold">Total Pembayaran</span>
-            <span className="text-base font-bold text-success">{formatCurrency(total)}</span>
-          </div>
+          <section className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="font-medium">{formatCurrency(subtotal)}</span>
+            </div>
+            {fee > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Biaya Admin</span>
+                <span className="font-medium">{formatCurrency(fee)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-border pt-2">
+              <span className="font-semibold">Total Pembayaran</span>
+              <span className="text-base font-bold text-success">
+                {formatCurrency(total)}
+              </span>
+            </div>
+          </section>
         </div>
 
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 md:col-span-2">
-          {status.status === "SUCCESS" ? (
-            <div className="flex flex-col items-center gap-3 py-6 text-center">
-              <PartyPopper className="size-10 text-success" />
-              <p className="text-base font-semibold">Pembayaran Berhasil!</p>
-            </div>
-          ) : (
-            <>
-              {context?.paymentMethodName && (
+        <div className="flex flex-col gap-4 md:col-span-2">
+          <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+            {status.status === "SUCCESS" && (
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-success/15 text-success">
+                  <PartyPopper className="size-4" />
+                </div>
                 <div>
-                  <span className="text-xs text-muted-foreground">Metode Pembayaran</span>
-                  <p className="text-base font-bold">{context.paymentMethodName}</p>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2.5 border-t border-border pt-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Nomor Invoice</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs">{refId}</span>
-                    <CopyIconButton value={refId} />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Status Pembayaran</span>
-                  <Badge variant={isPaid ? "success" : "destructive"}>{isPaid ? "LUNAS" : "BELUM BAYAR"}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Status Transaksi</span>
-                  <StatusBadge status={status.status} />
+                  <p className="text-sm font-semibold">Pembayaran Berhasil</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pesanan kamu sudah diproses
+                  </p>
                 </div>
               </div>
+            )}
 
+            {context?.paymentMethodName && (
+              <div
+                className={
+                  status.status === "SUCCESS"
+                    ? "border-t border-border pt-3"
+                    : undefined
+                }
+              >
+                <span className="text-xs text-muted-foreground">
+                  Metode Pembayaran
+                </span>
+                <p className="text-base font-bold">
+                  {context.paymentMethodName}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2.5 border-t border-border pt-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Nomor Invoice</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono text-xs">{refId}</span>
+                  <CopyIconButton value={refId} />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Status Pembayaran</span>
+                <Badge variant={isPaid ? "success" : "destructive"}>
+                  {isPaid ? "LUNAS" : "BELUM BAYAR"}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Status Transaksi</span>
+                <StatusBadge status={status.status} />
+              </div>
+            </div>
+
+            {status.status !== "SUCCESS" && (
               <p className="rounded-lg bg-background-input px-3 py-2.5 text-xs text-muted-foreground">
                 {messageByStatus[status.status] ?? ""}
               </p>
+            )}
 
-              {status.va_number && (
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                    Nomor Virtual Account
-                  </span>
-                  <CopyableCode value={status.va_number.trim()} />
-                </div>
-              )}
-            </>
-          )}
-        </section>
+            {!isPaid && status.va_number && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Nomor Virtual Account
+                </span>
+                <CopyableCode value={status.va_number.trim()} />
+              </div>
+            )}
+          </section>
 
-        <Link
-          href="/contact-us"
-          className="flex items-center gap-3 rounded-xl border border-border bg-card p-5 md:col-span-2 md:col-start-4"
-        >
-          <Headset className="size-5 shrink-0 text-primary" />
-          <div>
-            <p className="text-sm font-semibold">Butuh Bantuan?</p>
-            <p className="text-xs text-muted-foreground">Hubungi CS</p>
-          </div>
-        </Link>
+          <Link
+            href="/contact-us"
+            className="flex items-center gap-3 rounded-xl border border-border bg-card p-5"
+          >
+            <Headset className="size-5 shrink-0 text-primary" />
+            <div>
+              <p className="text-sm font-semibold">Butuh Bantuan?</p>
+              <p className="text-xs text-muted-foreground">Hubungi CS</p>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   );

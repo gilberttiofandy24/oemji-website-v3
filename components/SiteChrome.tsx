@@ -18,7 +18,7 @@ export function SiteChrome({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <NavBar />
-      <main className="min-h-[80vh]">{children}</main>
+      <main className="flex-1">{children}</main>
       <Footer />
       <CartWidget />
     </div>

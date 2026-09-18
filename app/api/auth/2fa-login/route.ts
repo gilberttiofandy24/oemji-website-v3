@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ApiError, isTwoFactorRequired, signInUser } from "@/lib/backend";
+import { ApiError, loginTwoFactorUser } from "@/lib/backend";
 import { setSessionCookie } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
   try {
-    const result = await signInUser({ identifier: body.identifier, password: body.password });
-    if (isTwoFactorRequired(result.data)) {
-      return NextResponse.json({
-        message: result.message,
-        requires_2fa: true,
-        pending_token: result.data.pending_token,
-      });
-    }
+    const result = await loginTwoFactorUser(body.pending_token, body.code);
     await setSessionCookie(result.data.token);
     return NextResponse.json({ message: result.message, account: result.data.account });
   } catch (err) {

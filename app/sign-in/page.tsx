@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -17,6 +17,10 @@ export default function SignInPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,12 +39,40 @@ export default function SignInPage() {
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message ?? "Gagal masuk");
+
+      if (body.requires_2fa) {
+        setPendingToken(body.pending_token);
+        return;
+      }
+
       refreshAuth();
       router.push("/");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal masuk");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingToken || !code.trim()) return;
+
+    setIsVerifying(true);
+    try {
+      const res = await fetch("/api/auth/2fa-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pending_token: pendingToken, code: code.trim() }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message ?? "Kode tidak valid");
+      refreshAuth();
+      router.push("/");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Kode tidak valid");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -60,53 +92,102 @@ export default function SignInPage() {
             <Image src="/logo-name.png" alt="Oemji" width={40} height={40} />
           </Link>
 
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold md:text-3xl">Masuk ke Oemji</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Masuk buat pakai keranjang dan lacak pesanan kamu
-            </p>
-          </div>
+          {pendingToken ? (
+            <>
+              <div className="mb-8">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <h1 className="mt-3 text-2xl font-bold md:text-3xl">Verifikasi 2 Langkah</h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Masukkan kode dari aplikasi authenticator kamu, atau salah satu recovery code.
+                </p>
+              </div>
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-5">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="identifier" className="text-sm font-medium">
-                Email atau Username
-              </label>
-              <Input
-                id="identifier"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="kamu@email.com atau username"
-                autoComplete="username"
-                className="h-11"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <PasswordInput
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                className="h-11"
-                required
-              />
-            </div>
+              <form onSubmit={handleVerify2FA} noValidate className="space-y-5">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="code" className="text-sm font-medium">
+                    Kode Verifikasi
+                  </label>
+                  <Input
+                    id="code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    placeholder="123456 atau recovery code"
+                    maxLength={10}
+                    className="h-11"
+                    autoFocus
+                    required
+                  />
+                </div>
 
-            <Button type="submit" isLoading={loading} className="w-full">
-              Masuk
-            </Button>
-          </form>
+                <Button type="submit" isLoading={isVerifying} className="w-full">
+                  Verifikasi
+                </Button>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Belum punya akun?{" "}
-            <Link href="/sign-up" className="text-primary underline underline-offset-2">
-              Daftar
-            </Link>
-          </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingToken(null);
+                    setCode("");
+                  }}
+                  className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
+                >
+                  Kembali ke halaman masuk
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold md:text-3xl">Masuk ke Oemji</h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Masuk buat pakai keranjang dan lacak pesanan kamu
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="identifier" className="text-sm font-medium">
+                    Email atau Username
+                  </label>
+                  <Input
+                    id="identifier"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="kamu@email.com atau username"
+                    autoComplete="username"
+                    className="h-11"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </label>
+                  <PasswordInput
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    className="h-11"
+                    required
+                  />
+                </div>
+
+                <Button type="submit" isLoading={loading} className="w-full">
+                  Masuk
+                </Button>
+              </form>
+
+              <p className="mt-6 text-center text-sm text-muted-foreground">
+                Belum punya akun?{" "}
+                <Link href="/sign-up" className="text-primary underline underline-offset-2">
+                  Daftar
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
 

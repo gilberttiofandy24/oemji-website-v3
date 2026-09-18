@@ -254,6 +254,17 @@ export interface SignInResponse {
   account: UserAccount;
 }
 
+export interface TwoFactorRequiredData {
+  requires_2fa: true;
+  pending_token: string;
+}
+
+export type SignInResult = SignInResponse | TwoFactorRequiredData;
+
+export function isTwoFactorRequired(data: SignInResult): data is TwoFactorRequiredData {
+  return "requires_2fa" in data && data.requires_2fa === true;
+}
+
 export interface SignUpPayload {
   email: string;
   password: string;
@@ -283,10 +294,20 @@ export async function verifySignUpOtp(
 export async function signInUser(payload: {
   identifier: string;
   password: string;
-}): Promise<ResponseData<SignInResponse>> {
+}): Promise<ResponseData<SignInResult>> {
   return backendFetch("/auth/user/sign-in", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function loginTwoFactorUser(
+  pendingToken: string,
+  code: string,
+): Promise<ResponseData<SignInResponse>> {
+  return backendFetch("/auth/user/2fa/login", {
+    method: "POST",
+    body: JSON.stringify({ pending_token: pendingToken, code }),
   });
 }
 
@@ -312,6 +333,8 @@ export interface MeUserData {
   is_reseller: boolean;
   is_verified: boolean;
   last_login_at?: string;
+  totp_enabled: boolean;
+  recovery_codes_remaining: number;
 }
 
 export async function getMeUser(token: string): Promise<ResponseData<MeUserData>> {
@@ -329,6 +352,44 @@ export interface ChangePasswordPayload {
 
 export async function changePasswordUser(token: string, payload: ChangePasswordPayload): Promise<void> {
   await backendFetch("/auth/user/change-password", {
+    method: "POST",
+    headers: authHeader(token),
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface TwoFactorSetupData {
+  qr_image: string;
+  secret: string;
+}
+
+export async function setupTwoFactorUser(token: string): Promise<ResponseData<TwoFactorSetupData>> {
+  return backendFetch("/auth/user/2fa/setup", {
+    method: "POST",
+    headers: authHeader(token),
+  });
+}
+
+export interface TwoFactorVerifyData {
+  recovery_codes: string[];
+}
+
+export async function verifyTwoFactorUser(
+  token: string,
+  code: string,
+): Promise<ResponseData<TwoFactorVerifyData>> {
+  return backendFetch("/auth/user/2fa/verify", {
+    method: "POST",
+    headers: authHeader(token),
+    body: JSON.stringify({ code }),
+  });
+}
+
+export async function disableTwoFactorUser(
+  token: string,
+  payload: { password: string; code: string },
+): Promise<void> {
+  await backendFetch("/auth/user/2fa/disable", {
     method: "POST",
     headers: authHeader(token),
     body: JSON.stringify(payload),
@@ -410,6 +471,8 @@ export interface CheckoutPayload {
 export interface CheckoutData {
   batch_id: string;
   ref_id: string;
+  subtotal_amount: string;
+  fee_amount: string;
   total_amount: string;
   partner_service_id: string;
   va_number: string;
@@ -427,6 +490,11 @@ export async function checkout(
   });
 }
 
+export interface CheckoutStatusInput {
+  label: string;
+  value: string;
+}
+
 export interface CheckoutStatusItem {
   ref_id: string;
   product_name: string;
@@ -434,12 +502,16 @@ export interface CheckoutStatusItem {
   nickname: string | null;
   status: string;
   serial_number: string | null;
+  sell_price: string;
+  inputs: CheckoutStatusInput[];
 }
 
 export interface CheckoutStatusData {
   batch_id: string;
   ref_id: string;
   status: string;
+  subtotal_amount: string;
+  fee_amount: string;
   total_amount: string;
   partner_service_id: string;
   va_number: string;
@@ -467,6 +539,20 @@ export async function getOrderHistory(
   page: number,
 ): Promise<PaginatedResponse<OrderHistoryItem>> {
   return backendFetch(`/order/history?page=${page}`, {
+    headers: authHeader(token),
+    cache: "no-store",
+  });
+}
+
+export interface OrderStatsData {
+  total: number;
+  pending: number;
+  success: number;
+  failed: number;
+}
+
+export async function getOrderStats(token: string): Promise<ResponseData<OrderStatsData>> {
+  return backendFetch(`/order/history/stats`, {
     headers: authHeader(token),
     cache: "no-store",
   });
