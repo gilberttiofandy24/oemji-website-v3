@@ -271,11 +271,16 @@ export interface SignUpPayload {
   username: string;
   phone: string;
   is_reseller: boolean;
+  captcha_token: string;
 }
 
-export async function signUpUser(payload: SignUpPayload): Promise<ResponseData<SignInResponse>> {
+export async function signUpUser(
+  payload: SignUpPayload,
+  clientIp?: string,
+): Promise<ResponseData<SignInResponse>> {
   return backendFetch("/auth/user/sign-up", {
     method: "POST",
+    headers: clientIp ? { "X-Client-IP": clientIp } : undefined,
     body: JSON.stringify(payload),
   });
 }
@@ -291,13 +296,21 @@ export async function verifySignUpOtp(
   });
 }
 
-export async function signInUser(payload: {
-  identifier: string;
-  password: string;
-}): Promise<ResponseData<SignInResult>> {
+export async function signInUser(
+  payload: { identifier: string; password: string },
+  clientIp?: string,
+): Promise<ResponseData<SignInResult>> {
   return backendFetch("/auth/user/sign-in", {
     method: "POST",
+    headers: clientIp ? { "X-Client-IP": clientIp } : undefined,
     body: JSON.stringify(payload),
+  });
+}
+
+export async function resendSignUpOtp(token: string): Promise<{ message: string }> {
+  return backendFetch("/auth/user/resend-otp", {
+    method: "POST",
+    headers: authHeader(token),
   });
 }
 
@@ -348,6 +361,7 @@ export interface ChangePasswordPayload {
   old_password: string;
   new_password: string;
   confirm_password: string;
+  logout_other_devices?: boolean;
 }
 
 export async function changePasswordUser(token: string, payload: ChangePasswordPayload): Promise<void> {

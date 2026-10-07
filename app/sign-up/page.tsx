@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,19 +41,25 @@ export default function SignUpPage() {
       toast.error("Konfirmasi password tidak cocok");
       return;
     }
+    if (!captchaToken) {
+      toast.error("Selesaikan verifikasi captcha dulu");
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await fetch("/api/auth/sign-up", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, username, phone, password }),
+        body: JSON.stringify({ email, username, phone, password, captcha_token: captchaToken }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message ?? "Gagal mendaftar");
       router.push("/sign-up-otp");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal mendaftar");
+      setCaptchaToken(null);
+      setCaptchaKey((k) => k + 1);
     } finally {
       setLoading(false);
     }
@@ -152,7 +161,9 @@ export default function SignUpPage() {
               />
             </div>
 
-            <Button type="submit" isLoading={loading} className="w-full">
+            <TurnstileWidget key={captchaKey} onToken={setCaptchaToken} />
+
+            <Button type="submit" isLoading={loading} disabled={!captchaToken} className="w-full">
               Daftar
             </Button>
           </form>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiError, signUpUser } from "@/lib/backend";
+import { getClientIp } from "@/lib/client-ip";
 import { setSessionCookie } from "@/lib/session";
 
 function toE164(phone: string) {
@@ -12,13 +13,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   try {
-    const result = await signUpUser({
-      email: body.email,
-      password: body.password,
-      username: body.username,
-      phone: toE164(body.phone),
-      is_reseller: false,
-    });
+    const result = await signUpUser(
+      {
+        email: body.email,
+        password: body.password,
+        username: body.username,
+        phone: toE164(body.phone),
+        is_reseller: false,
+        captcha_token: body.captcha_token,
+      },
+      getClientIp(req),
+    );
     await setSessionCookie(result.data.token);
     return NextResponse.json({ message: result.message, account: result.data.account });
   } catch (err) {

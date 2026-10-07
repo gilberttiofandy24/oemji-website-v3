@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { KeyRound, LogOut, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useCart } from "@/components/cart/cart-context";
 import { useAccount } from "@/hooks/use-account";
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [logoutOtherDevices, setLogoutOtherDevices] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isLoggingOutAll, setIsLoggingOutAll] = useState(false);
 
@@ -40,6 +42,7 @@ export default function SettingsPage() {
           old_password: oldPassword,
           new_password: newPassword,
           confirm_password: confirmPassword,
+          logout_other_devices: logoutOtherDevices,
         }),
       });
       const body = await res.json();
@@ -51,6 +54,7 @@ export default function SettingsPage() {
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setLogoutOtherDevices(false);
     } catch {
       toast.error("Gagal mengganti password");
     } finally {
@@ -102,6 +106,13 @@ export default function SettingsPage() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={logoutOtherDevices}
+              onCheckedChange={(v) => setLogoutOtherDevices(v === true)}
+            />
+            Keluar dari perangkat lain setelah ganti password
+          </label>
           <Button onClick={handleChangePassword} disabled={isChangingPassword} className="mt-1">
             {isChangingPassword ? "Menyimpan..." : "Simpan Password Baru"}
           </Button>

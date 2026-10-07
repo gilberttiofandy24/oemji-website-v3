@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useCart } from "@/components/cart/cart-context";
 
 export default function SignUpOtpPage() {
@@ -15,6 +15,28 @@ export default function SignUpOtpPage() {
   const { refreshAuth } = useCart();
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      const res = await fetch("/api/auth/resend-otp", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast.error("Masuk dulu untuk kirim ulang kode");
+          router.push("/sign-in");
+          return;
+        }
+        throw new Error(body.message ?? "Gagal mengirim ulang kode");
+      }
+      toast.success("Kode baru sudah dikirim ke email kamu");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal mengirim ulang kode");
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +48,14 @@ export default function SignUpOtpPage() {
         body: JSON.stringify({ otp }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.message ?? "Verifikasi gagal");
+      if (!res.ok) {
+        if (body.code === "OTP_ATTEMPTS_EXCEEDED") {
+          toast.error("Terlalu banyak percobaan salah. Kirim ulang kode untuk mencoba lagi.");
+          setOtp("");
+          return;
+        }
+        throw new Error(body.message ?? "Verifikasi gagal");
+      }
       refreshAuth();
       router.push("/");
     } catch (err) {
@@ -64,21 +93,29 @@ export default function SignUpOtpPage() {
               <label htmlFor="otp" className="text-sm font-medium">
                 Kode OTP
               </label>
-              <Input
+              <InputOTP
                 id="otp"
-                inputMode="numeric"
                 maxLength={6}
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                placeholder="123456"
+                onChange={setOtp}
+                pattern="^[0-9]*$"
+                inputMode="numeric"
                 autoComplete="one-time-code"
-                className="h-11"
-                required
-              />
+                autoFocus
+              >
+                <InputOTPGroup>
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <InputOTPSlot key={i} index={i} />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
             </div>
 
             <Button type="submit" isLoading={loading} disabled={otp.length !== 6} className="w-full">
               Verifikasi
+            </Button>
+            <Button type="button" variant="ghost" onClick={handleResend} disabled={resending} className="w-full">
+              {resending ? "Mengirim..." : "Kirim ulang kode"}
             </Button>
           </form>
         </div>
