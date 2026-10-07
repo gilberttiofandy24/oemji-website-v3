@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await signInUser(
-      { identifier: body.identifier, password: body.password },
+      { identifier: body.identifier, password: body.password, captcha_token: body.captcha_token },
       getClientIp(req),
     );
     if (isTwoFactorRequired(result.data)) {

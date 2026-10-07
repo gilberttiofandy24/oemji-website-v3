@@ -13,6 +13,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/components/cart/cart-context";
 import { useBuyNowStore } from "@/components/checkout/buy-now-store";
 import { useCartCheckoutStore } from "@/components/checkout/cart-checkout-store";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 import CheckoutPaymentPicker from "./CheckoutPaymentPicker";
 import StepCard from "@/components/checkout/StepCard";
 
@@ -31,6 +32,7 @@ interface CheckoutItem {
   quantity: number;
   inputs: Record<string, string>;
   nickname?: string | null;
+  lockQuantity?: boolean;
   onQuantityChange: (quantity: number) => void;
 }
 
@@ -57,6 +59,9 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
   const [selectedMethodId, setSelectedMethodId] = useState("");
   const [cartNicknames, setCartNicknames] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const isGuest = authChecked && !isLoggedIn;
 
   useEffect(() => {
     if (authChecked && !isLoggedIn && !buyNowItem) {
@@ -85,6 +90,7 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
           quantity: buyNowItem.quantity,
           inputs: buyNowItem.inputs,
           nickname: buyNowItem.nickname ?? null,
+          lockQuantity: Boolean(buyNowItem.promoCode),
           onQuantityChange: (quantity: number) => setBuyNowItem({ ...buyNowItem, quantity }),
         },
       ];
@@ -165,6 +171,10 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
       toast.error("Isi nomor WhatsApp yang valid terlebih dahulu");
       return;
     }
+    if (isGuest && !captchaToken) {
+      toast.error("Selesaikan verifikasi captcha dulu");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -176,14 +186,24 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
             product_denom_id: item.denomId,
             inputs: item.inputs,
             quantity: item.quantity,
+            promo_code: item.key === "buy-now" ? buyNowItem?.promoCode : undefined,
           })),
           payment_method_id: selectedMethodId,
           phone_number: phoneNumber,
+          captcha_token: isGuest ? captchaToken : undefined,
         }),
       });
       const body = await res.json();
       if (!res.ok) {
-        toast.error(body.message ?? "Checkout gagal");
+        toast.error(
+          body.code === "GUEST_CHECKOUT_LIMIT"
+            ? "Beli tanpa akun hanya untuk 1 produk. Masuk untuk beli beberapa produk sekaligus."
+            : (body.message ?? "Checkout gagal"),
+        );
+        if (isGuest) {
+          setCaptchaToken(null);
+          setCaptchaKey((k) => k + 1);
+        }
         return;
       }
 
@@ -269,7 +289,7 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
                   variant="default"
                   size="icon"
                   className="size-7"
-                  disabled={item.quantity <= MIN_QUANTITY}
+                  disabled={item.lockQuantity || item.quantity <= MIN_QUANTITY}
                   onClick={() => item.onQuantityChange(Math.max(MIN_QUANTITY, item.quantity - 1))}
                 >
                   <Minus className="h-3 w-3" />
@@ -280,7 +300,7 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
                   variant="default"
                   size="icon"
                   className="size-7"
-                  disabled={item.quantity >= MAX_QUANTITY}
+                  disabled={item.lockQuantity || item.quantity >= MAX_QUANTITY}
                   onClick={() => item.onQuantityChange(Math.min(MAX_QUANTITY, item.quantity + 1))}
                 >
                   <Plus className="h-3 w-3" />
@@ -345,7 +365,16 @@ const CheckoutForm = ({ paymentMethodGroups }: CheckoutFormProps) => {
             </div>
           </div>
 
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full">
+          {isGuest && (
+            <>
+              <TurnstileWidget key={captchaKey} onToken={setCaptchaToken} />
+              <p className="text-xs text-muted-foreground">
+                Beli tanpa akun hanya untuk 1 produk. Masuk untuk beli beberapa produk sekaligus dan pakai keranjang.
+              </p>
+            </>
+          )}
+
+          <Button onClick={handleSubmit} disabled={isSubmitting || (isGuest && !captchaToken)} className="w-full">
             {isSubmitting ? "Memproses..." : "Bayar Sekarang"}
           </Button>
         </div>

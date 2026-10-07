@@ -9,6 +9,7 @@ import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { useCart } from "@/components/cart/cart-context";
 
 export default function SignInPage() {
@@ -17,6 +18,9 @@ export default function SignInPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
 
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -29,16 +33,31 @@ export default function SignInPage() {
       toast.error("Isi email/username dan password terlebih dahulu");
       return;
     }
+    if (captchaRequired && !captchaToken) {
+      toast.error("Selesaikan verifikasi captcha dulu");
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await fetch("/api/auth/sign-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier, password, captcha_token: captchaToken ?? undefined }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body.message ?? "Gagal masuk");
+      if (!res.ok) {
+        if (body.code === "CAPTCHA_REQUIRED" || body.code === "CAPTCHA_FAILED") {
+          setCaptchaRequired(true);
+        }
+        setCaptchaToken(null);
+        setCaptchaKey((k) => k + 1);
+        throw new Error(
+          body.code === "CAPTCHA_REQUIRED"
+            ? "Selesaikan verifikasi captcha, lalu coba masuk lagi"
+            : (body.message ?? "Gagal masuk"),
+        );
+      }
 
       if (body.requires_2fa) {
         setPendingToken(body.pending_token);
@@ -175,7 +194,14 @@ export default function SignInPage() {
                   />
                 </div>
 
-                <Button type="submit" isLoading={loading} className="w-full">
+                {captchaRequired && <TurnstileWidget key={captchaKey} onToken={setCaptchaToken} />}
+
+                <Button
+                  type="submit"
+                  isLoading={loading}
+                  disabled={captchaRequired && !captchaToken}
+                  className="w-full"
+                >
                   Masuk
                 </Button>
               </form>

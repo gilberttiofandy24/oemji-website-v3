@@ -297,7 +297,7 @@ export async function verifySignUpOtp(
 }
 
 export async function signInUser(
-  payload: { identifier: string; password: string },
+  payload: { identifier: string; password: string; captcha_token?: string },
   clientIp?: string,
 ): Promise<ResponseData<SignInResult>> {
   return backendFetch("/auth/user/sign-in", {
@@ -474,6 +474,7 @@ export interface CheckoutItemPayload {
   product_denom_id: string;
   inputs: Record<string, string>;
   quantity: number;
+  promo_code?: string;
 }
 
 export interface CheckoutPayload {
@@ -487,10 +488,22 @@ export interface CheckoutData {
   ref_id: string;
   subtotal_amount: string;
   fee_amount: string;
+  discount_amount: string;
   total_amount: string;
   partner_service_id: string;
   va_number: string;
   expired_at: string;
+}
+
+export async function publicCheckout(
+  payload: CheckoutPayload & { captcha_token: string },
+  clientIp?: string,
+): Promise<ResponseData<CheckoutData>> {
+  return backendFetch("/public/order/checkout", {
+    method: "POST",
+    headers: clientIp ? { "X-Client-IP": clientIp } : undefined,
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function checkout(
@@ -526,6 +539,7 @@ export interface CheckoutStatusData {
   status: string;
   subtotal_amount: string;
   fee_amount: string;
+  discount_amount: string;
   total_amount: string;
   partner_service_id: string;
   va_number: string;

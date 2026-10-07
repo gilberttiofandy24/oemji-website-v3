@@ -171,6 +171,7 @@ const PaymentPageClient = ({ refId }: { refId: string }) => {
   const total = Number(status.total_amount);
   const subtotal = Number(status.subtotal_amount);
   const fee = Number(status.fee_amount);
+  const discount = Number(status.discount_amount);
 
   return (
     <div className="flex flex-col gap-4">
@@ -256,6 +257,12 @@ const PaymentPageClient = ({ refId }: { refId: string }) => {
               <span className="text-muted-foreground">Subtotal</span>
               <span className="font-medium">{formatCurrency(subtotal)}</span>
             </div>
+            {discount > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Diskon Promo</span>
+                <span className="font-medium">-{formatCurrency(discount)}</span>
+              </div>
+            )}
             {fee > 0 && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Biaya Admin</span>
